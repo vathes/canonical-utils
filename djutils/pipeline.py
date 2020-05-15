@@ -76,11 +76,11 @@ class Pipeline:
 
             if requirements:
                 for hook_name, hook_target in requirements.items():
-                    hook_name = f'_{hook_name}'
+                    hook_name = '_{}'.format(hook_name)
                     if hook_name in dir(table_class):
                         setattr(table_class, hook_name, hook_target)
 
-            print(f'Initializing {table_class.__name__}')
+            print('Initializing {}'.format(table_class.__name__))
             table = schema(table_class, context=context)
             context[table.__name__] = table
             tables[table.__name__] = table
