@@ -1,38 +1,36 @@
 import datajoint as dj
 import inspect
 
-class Pipeline:
+class SchemaTemplate:
 
     """
-    A pipeline object is a class to initiate a datajoint pipeline based on
-    the template module.
+    A schema object is a decorator for datajoint pipeline classes
     """
 
-    def __init__(self, table_classes,
-                 required_table_names=None,
+    def __init__(self, upstream_table_names=None,
                  required_method_names=None):
         """
-        :param table_classes:  user table classes to be initiated in order
         :param required_table_names: names of tables the current pipeline requires
         :param required_method_names: names of methods the current pipeline requires
         """
 
-        self._table_classes = table_classes
-        self.required_table_names = required_table_names
+        self.upstream_table_names = upstream_table_names
         self.required_method_names = required_method_names
+        self._table_classes = []
+
 
     @property
     def requirements(self):
         """
         return: a message as a guidance for users to generate proper requirements
         """
-        if not (self.required_table_names or self.required_method_names):
+        if not (self.upstream_table_names or self.required_method_names):
             return 'No required upstream tables or methods.'
 
         msg = '"requirements" needs to be a dictionary with'
 
-        if self.required_table_names:
-            msg += ' - Keys for upstream tables: {}'.format(self.required_table_names)
+        if self.upstream_table_names:
+            msg += ' - Keys for upstream tables: {}'.format(self.upstream_table_names)
         if self.required_method_names:
             msg += ' - Keys for require methods: {}'.format(self.required_method_names)
 
@@ -41,8 +39,8 @@ class Pipeline:
     def _check_requirements(self, requirements):
 
         checked_requirements = {}
-        if self.required_table_names:
-            for k in self.required_table_names:
+        if self.upstream_table_names:
+            for k in self.upstream_table_names:
                 if k not in requirements:
                     raise KeyError('Requiring upstream table: {}'.format(k))
                 else:
@@ -57,9 +55,19 @@ class Pipeline:
 
         return checked_requirements
 
-    def init_pipeline(self, schema, requirements=None, context={}, add_here=False):
+    def __call__(self, table_class, context=None):
+        '''
+        While decorating, add table classes into self.tables
+        '''
+        if not context:
+            context = inspect.currentframe().f_back.f_locals
+
+        self._table_classes.append(table_class)
+
+
+    def declare_tables(self, schema, requirements=None, context=None, add_here=False):
         """
-        Method to initiate a datajoint pipeline
+        Method to declare tables in a datajoint pipeline in a schema
         :param schema: the schema object to decorate this pipeline
         :param requirements: a dictionary listing required tables and required methods
         :param context: dictionary for looking up foreign key references, leave None to use local context.
@@ -68,7 +76,7 @@ class Pipeline:
         """
         requirements = self._check_requirements(requirements)
 
-        if add_here and not context:
+        if not context:
             context = inspect.currentframe().f_back.f_locals
 
         tables = {}
@@ -83,9 +91,7 @@ class Pipeline:
             print('Initializing {}'.format(table_class.__name__))
             table = schema(table_class, context=context)
             context[table.__name__] = table
-            tables[table.__name__] = table
+            setattr(self, table.__name__, table)
 
         if add_here:
             context.update(**tables)
-
-        return tables
