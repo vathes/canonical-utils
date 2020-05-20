@@ -2,11 +2,9 @@ import datajoint as dj
 import inspect
 
 
-class RequiredMethod:
-
-    def __call__(self, f):
-        f.required = True
-        return f
+def required(f):
+    f.required = True
+    return f
 
 
 class SchemaTemplate:
@@ -18,6 +16,8 @@ class SchemaTemplate:
     def __init__(self, context=None):
         if not context:
             self._context = inspect.currentframe().f_back.f_locals
+        else:
+            self._context = context
 
         self.upstream_table_names = []
         self.required_method_names = []
