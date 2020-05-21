@@ -31,9 +31,9 @@ class SchemaTemplate:
         msg = '"requirements" needs to be a dictionary with:\n'
 
         if self.upstream_table_names:
-            msg += '\tKeys for upstream tables: {}'.format(self.upstream_table_names)
+            msg += '\tKeys for upstream tables: {}\n'.format(self.upstream_table_names)
         if self.required_method_names:
-            msg += '\tKeys for require methods: {}'.format(self.required_method_names)
+            msg += '\tKeys for require methods: {}\n'.format(self.required_method_names)
 
         print(msg)
 
