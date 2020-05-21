@@ -10,14 +10,11 @@ def required(f):
 class SchemaTemplate:
 
     """
-    A schema object is a decorator for datajoint djephys classes
+    A schema object is a decorator for datajoint pipeline classes
     """
 
     def __init__(self, context=None):
-        if not context:
-            self._context = inspect.currentframe().f_back.f_locals
-        else:
-            self._context = context
+        self._context = context or inspect.currentframe().f_back.f_locals
 
         self.upstream_table_names = []
         self.required_method_names = []
@@ -68,7 +65,7 @@ class SchemaTemplate:
         '''
 
         if table_class in self._table_classes:
-            raise RuntimeError(f'Duplicated table: {table_class.__name__}')
+            raise RuntimeError('Duplicated table: {}'.format(table_class.__name__))
 
         # check for required_table_names
         upstream_table_names = [str(k)[1:] for k, v in vars(table_class).items()
@@ -77,11 +74,9 @@ class SchemaTemplate:
         required_method_names = [str(k)[1:] for k in vars(table_class)
                                  if k.startswith('_') and getattr(getattr(table_class, k), 'required', False)]
 
-        [self.upstream_table_names.append(n) for n in upstream_table_names if n not in self.upstream_table_names]
-        [self.required_method_names.append(n) for n in required_method_names if n not in self.required_method_names]
+        self.upstream_table_names.extend(n for n in upstream_table_names if n not in self.upstream_table_names)
+        self.required_method_names.extend(n for n in required_method_names if n not in self.required_method_names)
 
-        # self.upstream_table_names.extend(upstream_table_names)
-        # self.required_method_names.extend(required_method_names)
         self._table_classes[table_class] = {'upstreams_tbls': upstream_table_names,
                                             'required_methods': required_method_names}
 
@@ -89,8 +84,8 @@ class SchemaTemplate:
 
     def declare_tables(self, schema, requirements=None, context=None):
         """
-        Method to declare tables in a datajoint djephys in a schema
-        :param schema: the schema object to decorate this djephys
+        Method to declare tables in a datajoint pipeline in a schema
+        :param schema: the schema object to decorate this pipeline
         :param requirements: a dictionary listing required tables and required methods
         :param context: dictionary for looking up foreign key references, leave None to use local context.
         :param add_here: True if adding the alias of class objects into the current context
