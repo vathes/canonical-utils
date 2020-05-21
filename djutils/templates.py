@@ -37,23 +37,23 @@ class SchemaTemplate:
 
         print(msg)
 
-    def _check_requirements(self, requirements):
-        checked_requirements = {}
+    def _check_dependencies(self, dependencies):
+        valid_dependencies = {}
         if self.upstream_table_names:
             for k in self.upstream_table_names:
-                if k not in requirements:
+                if k not in dependencies:
                     raise KeyError('Requiring upstream table: {}'.format(k))
                 else:
-                    checked_requirements[k] = requirements[k]
+                    valid_dependencies[k] = dependencies[k]
 
         if self.required_method_names:
             for k in self.required_method_names:
-                if k not in requirements or not inspect.isfunction(requirements[k]):
+                if k not in dependencies or not inspect.isfunction(dependencies[k]):
                     raise KeyError('Requiring method: {}'.format(k))
                 else:
-                    checked_requirements[k] = requirements[k]
+                    valid_dependencies[k] = dependencies[k]
 
-        return checked_requirements
+        return valid_dependencies
 
     def list_tables(self):
         for tbl in self._table_classes:
@@ -82,19 +82,20 @@ class SchemaTemplate:
 
         return table_class
 
-    def declare_tables(self, schema, requirements=None, context=None):
+    def declare(self, schema, dependencies=None, context=None):
         """
         Method to declare tables in a datajoint pipeline in a schema
-        :param schema: the schema object to decorate this pipeline
-        :param requirements: a dictionary listing required tables and required methods
+        :param schema: a string for schema name OR the schema object to decorate this pipeline
+        :param dependencies: a dictionary listing required tables and required methods
         :param context: dictionary for looking up foreign key references, leave None to use local context.
-        :param add_here: True if adding the alias of class objects into the current context
-        :return: initiated tables as a dictionary in the format of {class.__name__: class object}
         """
         if self.schema is not None:
             raise RuntimeError('Unable to initialize this template schema twice!')
 
-        requirements = self._check_requirements(requirements)
+        if isinstance(schema, str):
+            schema = dj.schema(schema)
+
+        dependencies = self._check_dependencies(dependencies)
 
         if not context:
             context = inspect.currentframe().f_back.f_locals
@@ -103,7 +104,7 @@ class SchemaTemplate:
 
         for table_class, tbl_reqs in self._table_classes.items():
             for required_attr in tbl_reqs['upstreams_tbls'] + tbl_reqs['required_methods']:
-                hook_target = requirements[required_attr]
+                hook_target = dependencies[required_attr]
                 hook_name = '_{}'.format(required_attr)
                 setattr(table_class, hook_name, hook_target)
 
