@@ -7,6 +7,11 @@ def required(f):
     return f
 
 
+def optional(f):
+    f.optional = True
+    return f
+
+
 class SchemaTemplate:
 
     """
@@ -18,6 +23,7 @@ class SchemaTemplate:
 
         self.upstream_table_names = []
         self.required_method_names = []
+        self.optional_method_names = []
         self._table_classes = {}
         self.schema = None
 
@@ -25,7 +31,7 @@ class SchemaTemplate:
         """
         return: a message as a guidance for users to generate proper requirements
         """
-        if not (self.upstream_table_names or self.required_method_names):
+        if not (self.upstream_table_names or self.required_method_names or self.optional_method_names):
             print('No required upstream tables or methods.')
 
         msg = '"requirements" needs to be a dictionary with:\n'
@@ -34,6 +40,8 @@ class SchemaTemplate:
             msg += '\tKeys for upstream tables: {}\n'.format(self.upstream_table_names)
         if self.required_method_names:
             msg += '\tKeys for require methods: {}\n'.format(self.required_method_names)
+        if self.optional_method_names:
+            msg += '\tKeys for optional methods: {}\n'.format(self.optional_method_names)
 
         print(msg)
 
@@ -73,12 +81,17 @@ class SchemaTemplate:
         # check for required_method_names
         required_method_names = [str(k)[1:] for k in vars(table_class)
                                  if k.startswith('_') and getattr(getattr(table_class, k), 'required', False)]
+        # check for optional_method_names
+        optional_method_names = [str(k)[1:] for k in vars(table_class)
+                                 if k.startswith('_') and getattr(getattr(table_class, k), 'optional', False)]
 
         self.upstream_table_names.extend(n for n in upstream_table_names if n not in self.upstream_table_names)
         self.required_method_names.extend(n for n in required_method_names if n not in self.required_method_names)
+        self.optional_method_names.extend(n for n in optional_method_names if n not in self.optional_method_names)
 
         self._table_classes[table_class] = {'upstreams_tbls': upstream_table_names,
-                                            'required_methods': required_method_names}
+                                            'required_methods': required_method_names,
+                                            'optional_methods': optional_method_names}
 
         return table_class
 
@@ -103,8 +116,8 @@ class SchemaTemplate:
         self._context.update(**context)
 
         for table_class, tbl_reqs in self._table_classes.items():
-            for required_attr in tbl_reqs['upstreams_tbls'] + tbl_reqs['required_methods']:
-                hook_target = dependencies[required_attr]
+            for required_attr in tbl_reqs['upstreams_tbls'] + tbl_reqs['required_methods'] + tbl_reqs['optional_methods']:
+                hook_target = dependencies.get(required_attr, _undefined_optional_method)
                 hook_name = '_{}'.format(required_attr)
                 setattr(table_class, hook_name, hook_target)
 
@@ -114,3 +127,7 @@ class SchemaTemplate:
             setattr(self, table.__name__, table)
 
         self.schema = schema
+
+
+def _undefined_optional_method(*args, **kwargs):
+    raise NotImplementedError
