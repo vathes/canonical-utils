@@ -61,6 +61,14 @@ class SchemaTemplate:
                 else:
                     valid_dependencies[k] = dependencies[k]
 
+        if self.optional_method_names:
+            for k in self.optional_method_names:
+                if k in dependencies:
+                    if not inspect.isfunction(dependencies[k]):
+                        raise KeyError('Optional {} provided but not a valid method'.format(k))
+                    else:
+                        valid_dependencies[k] = dependencies[k]
+
         return valid_dependencies
 
     def list_tables(self):
@@ -131,3 +139,4 @@ class SchemaTemplate:
 
 def _undefined_optional_method(*args, **kwargs):
     raise NotImplementedError
+
